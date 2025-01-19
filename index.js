@@ -4,6 +4,7 @@ const app = express(); // express nodejs application has an inbuilt router
 const port = 3000;
 import router from './routes/index.js';
 import './config/mongoose.js';
+import './config/nodemailer.js';
 
 app.use(bodyParser.json());
 

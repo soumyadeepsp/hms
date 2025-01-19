@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     email: { type: String, required: true },
     mobile: { type: Number, required: true },
+    is_mobile_verified: { type: Boolean, default: false },
     type: { type: String, required: true, enum: ['patient', 'doctor', 'admin']},
     age: { type: Number, required: true },
     address: { type: String, required: true },
