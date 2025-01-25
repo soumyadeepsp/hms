@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema({
     type: { type: String, required: true, enum: ['patient', 'doctor', 'admin']},
     age: { type: Number, required: true },
     address: { type: String, required: true },
-    gender: { type: String, required: true, enum: ["M", "F", "O"]}
+    gender: { type: String, required: true, enum: ["M", "F", "O"]},
+    description: { type: String },
 });
 
 userSchema.pre('save', async function(next) {

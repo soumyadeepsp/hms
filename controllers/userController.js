@@ -1,6 +1,7 @@
 import userModel from '../schemas/user.js';
+import doctorTokenModel from '../schemas/doctorToken.js';
 import jwt from 'jsonwebtoken';
-import { generateRandom4DigitNumber } from '../utilities/helperFunctions.js';
+import { generateRandom4DigitNumber, removeSpecialCharacters } from '../utilities/helperFunctions.js';
 import axios from 'axios';
 import otpModel from '../schemas/otp.js';
 import { sendEmail } from '../config/nodemailer.js';
@@ -117,6 +118,40 @@ export const testController = (req, res) => {
         const headers = req.headers;
         console.log(headers);
         return res.status(200).json({ message: 'Test API' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const searchDoctors = async (req, res) => {
+    try {
+        const query = req.params.query;
+        const searchTokens = removeSpecialCharacters(query).split(' ');
+        const doctorTokens = await doctorTokenModel.find({});
+        const tokenMatchingScore = [];
+        for (let i=0; i<doctorTokens.length; i++) {
+            const tokens = doctorTokens[i].token;
+            let score = 0;
+            for (let j=0; j<searchTokens.length; j++) {
+                if (tokens.includes(searchTokens[j])) {
+                    score++;
+                }
+            }
+            tokenMatchingScore.push({ doctor_id: doctorTokens[i].doctor_id, score: score });
+        }
+        await tokenMatchingScore.sort((a, b) => a.score - b.score);
+        console.log(tokenMatchingScore);
+        const doctors = [];
+        for (let i=tokenMatchingScore.length-1; i>=tokenMatchingScore.length-5; i--) {
+            if (tokenMatchingScore[i].score === 0) {
+                break;
+            }
+            const doctor = await userModel.findById(tokenMatchingScore[i].doctor_id );
+            console.log(doctor);
+            doctors.push(doctor);
+        }
+        console.log(doctors);
+        return res.status(200).json({ message: 'Doctors found successfully', doctors: doctors });
     } catch(err) {
         return res.status(500).json({ message: 'Internal server error' });
     }

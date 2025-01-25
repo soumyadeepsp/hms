@@ -7,7 +7,7 @@ const transporter = nodemailer.createTransport({
     secure: false,
     auth: {
         user: 'soumyadeepsp@gmail.com', // Your email address
-        pass: ''   // Your email password or app-specific password
+        pass: 'uohrnhdoqvhcbxdg'   // Your email password or app-specific password
     }
 });
 
@@ -17,7 +17,10 @@ export const sendEmail = async (to, subject, text) => {
         from: 'soumyadeepsp@gmail.com', // Sender address
         to: to,                       // List of recipients
         subject: subject,             // Subject line
-        text: text                    // Plain text body
+        html: `<div>
+                <h1>hello how are you?</h1>
+                <p>I am just mailing you for some <strong>important</strong> news</p>
+            </div>`
     };
     try {
         const info = await transporter.sendMail(mailOptions);

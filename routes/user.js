@@ -1,5 +1,5 @@
 import express from 'express';
-import { signup, signin, sendMobileOtp, verifyMobileOtp, sendEmailController, testController } from '../controllers/userController.js';
+import { signup, signin, sendMobileOtp, verifyMobileOtp, sendEmailController, testController, searchDoctors } from '../controllers/userController.js';
 
 const userRouter = express.Router();
 
@@ -9,5 +9,6 @@ userRouter.post('/send-mobile-otp', sendMobileOtp);
 userRouter.post('/verify-mobile-otp', verifyMobileOtp);
 userRouter.post('/send-email', sendEmailController);
 userRouter.get('/test-api', testController);
+userRouter.get('/search-doctors/:query', searchDoctors);
 
 export default userRouter;
