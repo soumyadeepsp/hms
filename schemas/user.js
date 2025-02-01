@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema({
     address: { type: String, required: true },
     gender: { type: String, required: true, enum: ["M", "F", "O"]},
     description: { type: String },
+    feedbackGiven: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Feedback' }],
+    feedbackReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Feedback' }]
 });
 
 userSchema.pre('save', async function(next) {

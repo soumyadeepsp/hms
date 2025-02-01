@@ -5,6 +5,8 @@ import { generateRandom4DigitNumber, removeSpecialCharacters } from '../utilitie
 import axios from 'axios';
 import otpModel from '../schemas/otp.js';
 import { sendEmail } from '../config/nodemailer.js';
+import feedbackModel from '../schemas/feedback.js';
+import availableSlotsModel from '../schemas/availableSlots.js';
 
 const secretKey = 'your_secret_key'; // Replace with your actual secret key
 
@@ -34,6 +36,7 @@ export const signin = async (req, res) => {
                 secretKey,
                 { expiresIn: '1h' } // Token expires in 1 hour
             );
+            res.cookie('auth_token', token);
             return res.status(200).json({ message: 'Signin successful', token: token });
         } else {
             return res.status(401).json({ message: 'Invalid credentials'});
@@ -152,6 +155,42 @@ export const searchDoctors = async (req, res) => {
         }
         console.log(doctors);
         return res.status(200).json({ message: 'Doctors found successfully', doctors: doctors });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const addFeedback = async (req, res) => {
+    try {
+        const user = req.user;
+        const patientId = user._id;
+        const { doctorId, rating, feedback } = req.body;
+        console.log("patientId =>"+patientId);
+        console.log(doctorId, rating, feedback);
+        const newFeedback = new feedbackModel({ patientId: patientId, doctorId: doctorId, rating: rating, feedback: feedback });
+        console.log("new feedback addd");
+        await newFeedback.save();
+        const doctor = await userModel.findById(doctorId);
+        const patient = await userModel.findById(patientId);
+        await doctor.feedbackReceived.push(newFeedback._id);
+        await patient.feedbackGiven.push(newFeedback._id);
+        await doctor.save();
+        await patient.save();
+        return res.status(201).json({ message: 'Feedback added successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const addAvailableSlots = async (req, res) => {
+    try {
+        const user = req.user;
+        const slots = req.body.slots;
+        console.log(slots);
+        const availableSlots = await new availableSlotsModel({doctorId: user._id, slots: slots});
+        await availableSlots.save();
+        console.log(availableSlots);
+        return res.status(201).json({ message: 'Available slots added successfully' });
     } catch(err) {
         return res.status(500).json({ message: 'Internal server error' });
     }
