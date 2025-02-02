@@ -7,6 +7,7 @@ import otpModel from '../schemas/otp.js';
 import { sendEmail } from '../config/nodemailer.js';
 import feedbackModel from '../schemas/feedback.js';
 import availableSlotsModel from '../schemas/availableSlots.js';
+import bookingsModel from '../schemas/bookings.js';
 
 const secretKey = 'your_secret_key'; // Replace with your actual secret key
 
@@ -185,12 +186,153 @@ export const addFeedback = async (req, res) => {
 export const addAvailableSlots = async (req, res) => {
     try {
         const user = req.user;
+        if (user.type !== 'doctor') {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
         const slots = req.body.slots;
         console.log(slots);
+        const slotsPresent = await availableSlotsModel.findOne({ doctorId: user._id });
+        if (slotsPresent) {
+            // await slotsPresent.deleteOne();
+            slotsPresent.slots = slots;
+            await slotsPresent.save();
+            return res.status(200).json({ message: 'Available slots updated successfully' });
+        }
         const availableSlots = await new availableSlotsModel({doctorId: user._id, slots: slots});
         await availableSlots.save();
         console.log(availableSlots);
         return res.status(201).json({ message: 'Available slots added successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const showAvailableSlots = async (req, res) => {
+    try {
+        const doctorId = req.params.doctorId;
+        const availableSlots = await availableSlotsModel.findOne({ doctorId: doctorId});
+        if (!availableSlots) {
+            return res.status(404).json({ message: 'No available slots found' });
+        }
+        return res.status(200).json({ message: 'Available slots found successfully', slots: availableSlots.slots });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const bookSlot = async (req, res) => {
+    try {
+        const user = req.user;
+        const { doctorId, date, time } = req.body;
+        const doctor = await userModel.findById(doctorId);
+        if (!doctor) {
+            return res.status(404).json({ message: 'Doctor not found' });
+        }
+        const availableSlots = await availableSlotsModel.findOne({ doctorId: doctorId });
+        if (!availableSlots) {
+            return res.status(404).json({ message: 'No available slots found' });
+        }
+        if  (doctorId==user._id) {
+            return res.status(403).json({ message: 'Forbidden as you cannot book a slot with yourself!' });
+        }
+        const timeSlots = availableSlots.slots.get(date);
+        const index = timeSlots.indexOf(time);
+        if (index === -1) {
+            return res.status(400).json({ message: 'Slot not available' });
+        }
+        timeSlots.splice(index, 1);
+        availableSlots.slots.set(date, timeSlots);
+        await availableSlots.save();
+        const newBooking = await new bookingsModel({ doctorId: doctorId, patientId: user._id, date: date, time: time });
+        await newBooking.save();
+        return res.status(200).json({ message: 'Slot booked successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const cancelBooking = async (req, res) => {
+    try {
+        const user = req.user;
+        const { bookingId } = req.params;
+        const booking = await bookingsModel.findById(bookingId);
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        if (booking.patientId.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        const doctorId = booking.doctorId;
+        const availableSlots = await availableSlotsModel.findOne({ doctorId: doctorId });
+        const timeSlots = availableSlots.slots.get(booking.date);
+        timeSlots.push(booking.time);
+        availableSlots.slots.set(booking.date, timeSlots);
+        await availableSlots.save();
+        await booking.deleteOne();
+        return res.status(200).json({ message: 'Booking cancelled successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const fetchAllBookingsForDoctor = async (req, res) => {
+    try {
+        const user = req.user;
+        if (user.type !== 'doctor') {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        console.log(user);
+        const bookings = await bookingsModel.find({doctorId: user._id});
+        console.log(bookings);
+        return res.status(200).json({ message: 'Bookings found successfully', bookings: bookings });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const fetchBookingForPatient = async (req, res) => {
+    try {
+        const user = req.user;
+        const booking = await bookingsModel.find({patientId: user._id});
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        return res.status(200).json({ message: 'Booking found successfully', booking: booking });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const cancelBookingByDoctor = async (req, res) => {
+    try {
+        const user = req.user;
+        const { bookingId } = req.body;
+        const booking = await bookingsModel.findById(bookingId);
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        if (booking.doctorId.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        await booking.deleteOne();
+        return res.status(200).json({ message: 'Booking cancelled successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const cancelBookingByPatient = async (req, res) => {
+    try {
+        const user = req.user;
+        const booking = await bookingsModel.find({patientId: user._id});
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        if (booking.patientId.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        await booking.deleteOne();
+        return res.status(200).json({ message: 'Booking cancelled successfully' });
     } catch(err) {
         return res.status(500).json({ message: 'Internal server error' });
     }
