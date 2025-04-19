@@ -8,6 +8,7 @@ import { sendEmail } from '../config/nodemailer.js';
 import feedbackModel from '../schemas/feedback.js';
 import availableSlotsModel from '../schemas/availableSlots.js';
 import bookingsModel from '../schemas/bookings.js';
+import mongoose from 'mongoose';
 
 const secretKey = 'your_secret_key'; // Replace with your actual secret key
 
@@ -168,15 +169,21 @@ export const addFeedback = async (req, res) => {
         const { doctorId, rating, feedback } = req.body;
         console.log("patientId =>"+patientId);
         console.log(doctorId, rating, feedback);
+        const session = await mongoose.startSession();
+        session.startTransaction();
         const newFeedback = new feedbackModel({ patientId: patientId, doctorId: doctorId, rating: rating, feedback: feedback });
+        await newFeedback.save({ session: session });
         console.log("new feedback addd");
-        await newFeedback.save();
         const doctor = await userModel.findById(doctorId);
         const patient = await userModel.findById(patientId);
         await doctor.feedbackReceived.push(newFeedback._id);
         await patient.feedbackGiven.push(newFeedback._id);
-        await doctor.save();
-        await patient.save();
+        const newFeedback1 = new feedbackModel({ doctorId: doctorId, rating: rating, feedback: feedback });
+        await newFeedback1.save({ session: session });
+        await doctor.save({ session: session });
+        await patient.save({ session: session });
+        await session.commitTransaction();
+        session.endSession();
         return res.status(201).json({ message: 'Feedback added successfully' });
     } catch(err) {
         return res.status(500).json({ message: 'Internal server error' });
@@ -333,6 +340,43 @@ export const cancelBookingByPatient = async (req, res) => {
         }
         await booking.deleteOne();
         return res.status(200).json({ message: 'Booking cancelled successfully' });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const fetchAllFeedbacksWithRatingAs1 = async (req, res) => {
+    try {
+        // 1st way using normal find function
+        // const feedbacks = await feedbackModel.find({ rating: 1 });
+        // if (!feedbacks) {
+        //     return res.status(404).json({ message: 'Feedback not found' });
+        // }
+        //1st way using aggregation
+        const feedback = await feedbackModel.aggregate([
+            {
+                $match: {
+                    rating: 1
+                }
+            }, {
+                $project: {
+                    doctorId: 0,
+                    rating: 0,
+                    patientId: 0,
+                    _id: 0,
+                    feedback: 1
+                }
+            }
+        ]);
+
+        // using JS code (2nd way)
+        // const feedbacks = await feedbackModel.findAll();
+        // for (let i=0; i<feedbacks.length; i++) {
+        //     if (feedbacks[i].rating !== 1) {
+        //         feedbacks[i].deleteOne();
+        //     }
+        // }
+        return res.status(200).json({ message: 'Feedback found successfully', feedbacks: feedbacks });
     } catch(err) {
         return res.status(500).json({ message: 'Internal server error' });
     }
