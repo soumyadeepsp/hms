@@ -366,6 +366,12 @@ export const fetchAllFeedbacksWithRatingAs1 = async (req, res) => {
                     _id: 0,
                     feedback: 1
                 }
+            }, {
+                $sort: {
+                    feedback: 1
+                }
+            }, {
+                $limit: 5
             }
         ]);
 
@@ -381,3 +387,44 @@ export const fetchAllFeedbacksWithRatingAs1 = async (req, res) => {
         return res.status(500).json({ message: 'Internal server error' });
     }
 }
+
+export const fetchUsersInPaginatedForm = async (req, res) => {
+    try {
+        const users = await userModel.aggregate([
+            {
+                $group: {
+                    _id: "$gender",
+                    count: { $sum: 1 }
+                }
+            }, {
+                $replaceWith: {
+                    gender: "$_id",
+                    count: "$count"
+                }
+            }, 
+            {
+                $merge: {
+                    into: "userCount",
+                    whenMatched: "merge",
+                    whenNotMatched: "insert"
+                }
+            }
+        ]);
+        return res.status(200).json({ message: 'Users found successfully', users: users });
+    } catch(err) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+// // orders collection
+// [
+//     { "_id": 21, "item": "Book", "price": 100, "customerId": 101 },
+//     { "_id": 31, "item": "Pen", "price": 10, "customerId": 102 },
+//     { "_id": 41, "item": "Notebook", "price": 50, "customerId": 101 }
+// ]
+
+// // customers collection
+// [
+//     { "_id": 101, "name": "Alice", "city": "New York" },
+//     { "_id": 102, "name": "Bob", "city": "Chicago" }
+// ]

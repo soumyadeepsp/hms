@@ -3,7 +3,8 @@ import { signup, signin, sendMobileOtp, verifyMobileOtp,
     sendEmailController, testController, searchDoctors, 
     addFeedback, addAvailableSlots, showAvailableSlots, 
     bookSlot, fetchAllBookingsForDoctor, fetchBookingForPatient, 
-    cancelBookingByDoctor, cancelBookingByPatient } from '../controllers/userController.js';
+    cancelBookingByDoctor, cancelBookingByPatient, 
+    fetchUsersInPaginatedForm } from '../controllers/userController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { checkIfDoctorMiddleware } from '../middleware/check_if_doctor.js';
 
@@ -24,5 +25,6 @@ userRouter.get('/get-doctor-bookings', authMiddleware, fetchAllBookingsForDoctor
 userRouter.get('/get-patient-booking', authMiddleware, fetchBookingForPatient);
 userRouter.delete('/delete-booking/:bookingId', authMiddleware, cancelBookingByDoctor);
 userRouter.delete('/delete-booking/:bookingId', authMiddleware, cancelBookingByPatient);
+userRouter.get('/fetch-users', fetchUsersInPaginatedForm);
 
 export default userRouter;
